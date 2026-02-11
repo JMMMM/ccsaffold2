@@ -3,6 +3,8 @@
 Auto-generated from all feature plans. Last updated: 2026-02-11
 
 ## Active Technologies
+- Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, https, crypto） (001-continuous-learning)
+- 文件系统（.skills/learn 目录） (001-continuous-learning)
 
 - Node.js 18+ (LTS) + 无外部依赖，使用Node.js内置模块（fs, path, readline, process） (001-session-logging)
 
@@ -75,6 +77,7 @@ Node.js 18+ (LTS): Follow standard conventions
 - 异步操作使用 Promise 或 async/await，但要确保在 `stdin end` 事件中正确处理
 
 ## Recent Changes
+- 001-continuous-learning: Added Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, https, crypto）
 
 - 001-session-logging: Added Node.js 18+ (LTS) + 无外部依赖，使用Node.js内置模块（fs, path, readline, process）
 
