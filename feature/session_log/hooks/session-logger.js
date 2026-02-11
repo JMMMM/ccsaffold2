@@ -48,19 +48,6 @@ function formatUserPrompt(input) {
 }
 
 function formatToolUse(input) {
-  const tool = input.tool_name || '';
-  const ti = input.tool_input || {};
-
-  switch (tool) {
-    case 'Edit':
-      return `claude> [Edit]\n  file: ${ti.file_path || ''}\n  old: ${ti.old_string || ''}\n  new: ${ti.new_string || ''}`;
-    case 'Write':
-      return `claude> [Write]\n  file: ${ti.file_path || ''}\n  content: ${ti.content || ''}`;
-    case 'Bash':
-      return `claude> [Bash]\n  command: ${ti.command || ''}`;
-    case 'NotebookEdit':
-      return `claude> [NotebookEdit]\n  notebook: ${ti.notebook_path || ''}\n  source: ${ti.new_source || ''}`;
-    default:
-      return `claude> [${tool}]\n  input: ${JSON.stringify(ti)}`;
-  }
+  // 输出工具调用的原文
+  return `Claude> ${JSON.stringify(input)}`;
 }

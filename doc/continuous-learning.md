@@ -1,7 +1,39 @@
-现在我想创建一个continuous-learning的command和自动学习的钩子，功能如下：
+## 持续学习
+创建一个总结会话内容生成skills的功能，该功能分成两个部分，一个是手动触发学习，一个是自动学习；
 
-1.command：summary-skills，入参：highline 字符串， 通过提示词模板+!命令，对当前会话的历史内容进行总结，提取出技能点，并将这些技能点保存到.claude/skills/learn技能库中。
-有你来写提示词模板内容必须含有，highline用于在提示词中突出关注的聊天内容，然后从会话内容中，找到针对一个问题反复提问大于等于3次内容，也就是说AI修改多次，最终修复成功的问题，在这个流程上总结经验；
-请帮我生成提示词，注意触发点的填写，以及必须参考claude code 的 command文档，和skills生成格式。
+## 实现方法
+- 自动学习
+新建一个hooks 触发点为sessionEnd，创建一个脚本叫 auto-learning.js 从sessionEnd中获取transcript_path；
+调用大模型，读取transcript_path的文件，从内容中找到符合“用户多次反复沟通后才最终修复的问题” 将内容汇总总结成skills 保存到项目的.skills/learn目录下；
 
+- 注意这类skill不保存到.claude文件中，而是直接保存在项目根目录下（cwd）；
+- 提示词创建必须参照模版；命名需要匹配内容；
+## skills提示词模版
+
+```
+--
+name: my-skill
+description: 这是一个示例技能，用于演示如何创建自定义 Skill
+---
+
+# Skill: my-skill
+
+## Purpose
+这个技能的主要用途是...
+
+## Trigger Conditions
+当用户提到以下关键词时会触发此技能：
+- 关键词1
+- 关键词2
+
+## Instructions
+1. 首先执行的操作
+2. 接下来的步骤
+3. 最后完成的任务
+
+## Examples
+示例1：用户输入 -> AI 的响应
+示例2：用户输入 -> AI 的响应
+
+```
 在开发过程中需要考虑多平台复用，例如Windows，macos，linux;
