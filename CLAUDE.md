@@ -14,15 +14,24 @@ Auto-generated from all feature plans. Last updated: 2026-02-12
 ## Project Structure
 
 ```text
-ccsaffold/                    # Claude Code 插件（可分享）
+ccsaffold2/                   # Claude Code 插件项目
 ├── .claude-plugin/
 │   └── plugin.json           # 插件清单
 ├── commands/                 # Slash 命令
+│   └── install.md            # 安装命令
 ├── hooks/                    # 事件处理程序
-│   ├── hooks.json
-│   └── *.js
+│   ├── hooks.json            # hooks配置（使用 ${CLAUDE_PLUGIN_ROOT}）
+│   ├── session-logger.js     # 会话日志记录
+│   └── auto-learning.js      # 自动学习
+├── scripts/                  # 工具脚本
+│   └── install.js            # 插件安装脚本
 ├── skills/                   # Agent Skills
 │   └── */SKILL.md
+├── lib/                      # 依赖库
+│   ├── transcript-reader.js
+│   ├── sensitive-filter.js
+│   ├── llm-analyzer.js
+│   └── skill-generator.js
 ├── .specify/                 # speckit 工作流支持
 │   ├── memory/
 │   ├── scripts/
@@ -38,6 +47,8 @@ feature/                      # 功能模块存储目录（开发参考）
 .claude/                      # 开发时的独立配置
 ├── commands/
 ├── hooks/
+├── conversations/
+│   └── conversation.txt
 └── settings.json
 
 specs/                        # 功能规范存储
