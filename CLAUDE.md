@@ -10,6 +10,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-12
 - Claude Code 插件 (003-plugin-standardize)
 - Node.js 18+ (LTS) + Node.js 内置模块 (child_process, fs, path, https) (004-async-auto-learning)
 - 文件系统 (.claude/logs/continuous-learning/) (004-async-auto-learning)
+- Node.js 18+ (LTS) - 与项目现有 hooks 保持一致 + 无外部依赖，使用 Node.js 内置模块（fs, path, url, readline） (005-web-cache-hooks)
+- 文件系统（`skills/learn/` 和 `doc/` 目录） (005-web-cache-hooks)
 
 - Node.js 18+ (LTS) + 无外部依赖，使用Node.js内置模块（fs, path, readline, process） (001-session-logging)
 
@@ -64,7 +66,36 @@ feature/                      # 功能模块存储目录（开发参考）
 
 specs/                        # 功能规范存储
 doc/                          # 文档存储
+│   └── {domain}.md           # web-cache 网站内容存档
 ```
+
+## Web Cache Hooks (005-web-cache-hooks)
+
+### 功能说明
+
+为 web-reader MCP 提供本地缓存功能，减少重复网络请求。
+
+### 缓存目录
+
+| 目录 | 用途 | 内容 |
+|------|------|------|
+| `.claude/skills/learn/{domain}/SKILL.md` | 知识摘要 | 精炼的核心知识点 |
+| `.claude/doc/{domain}.md` | 原始存档 | 完整的 markdown 内容 |
+
+### 使用方式
+
+```
+用户: 读取 https://docs.nodejs.org/api/fs.html 的内容
+# 首次: 调用 MCP，自动缓存
+# 后续: 使用缓存，跳过 MCP
+
+用户: 刷新 https://react.dev 的内容
+# 强制刷新，重新获取
+```
+
+### 强制刷新关键词
+
+`重新`, `刷新`, `跳过缓存`, `force refresh`, `reload`, `refresh`
 
 ## Plugin Usage
 
@@ -230,11 +261,9 @@ description: 简短描述，用于触发匹配
 | `user-invocable` | 否 | `false` 则从菜单隐藏 |
 
 ## Recent Changes
+- 005-web-cache-hooks: Added Node.js 18+ (LTS) - 与项目现有 hooks 保持一致 + 无外部依赖，使用 Node.js 内置模块（fs, path, url, readline）
 - 2026-02-12: 修复 skills 目录结构问题（必须是 `<name>/SKILL.md` 格式）
 - 2026-02-12: 添加 manual-learn、hook-creator、ccsaffold-jian skills
-- 004-async-auto-learning: Added Node.js 18+ (LTS) + Node.js 内置模块 (child_process, fs, path, https)
-- 003-plugin-standardize: Created ccsaffold plugin with speckit commands, session logging hooks, and Agent Skills
-- 003-plugin-standardize: Added Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, readline）
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
