@@ -1,6 +1,22 @@
 {
-  "description": "Auto-learning hooks for ccsaffold plugin",
+  "description": "ccsaffold plugin hooks: session logging and auto-learning",
   "hooks": {
+    "UserPromptSubmit": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-logger.js\""
+      }],
+      "description": "Session Log: 记录用户输入到conversation.txt"
+    }],
+    "PostToolUse": [{
+      "matcher": "^(?!Read|Grep|Glob|WebSearch|WebFetch|TaskOutput|mcp__|4_5v_mcp__|context7|web-reader|zai-mcp-server).*$",
+      "hooks": [{
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-logger.js\""
+      }],
+      "description": "Session Log: 记录AI工具调用（排除只读查询类工具）"
+    }],
     "SessionEnd": [{
       "matcher": "*",
       "hooks": [{
