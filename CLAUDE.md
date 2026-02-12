@@ -1,41 +1,74 @@
 # ccsaffold2 Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-02-11
+Auto-generated from all feature plans. Last updated: 2026-02-12
 
 ## Active Technologies
 - Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, https, crypto） (001-continuous-learning)
 - 文件系统（.skills/learn 目录） (001-continuous-learning)
+- Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, readline） (003-plugin-standardize)
+- 文件系统（doc/session_log/ 目录用于会话日志） (003-plugin-standardize)
+- Claude Code 插件 (003-plugin-standardize)
 
 - Node.js 18+ (LTS) + 无外部依赖，使用Node.js内置模块（fs, path, readline, process） (001-session-logging)
 
 ## Project Structure
 
 ```text
-src/
-├── hooks/           # Hook 脚本开发目录
-├── lib/             # 核心库模块
-tests/
-├── unit/
-└── integration/
+ccsaffold/                    # Claude Code 插件（可分享）
+├── .claude-plugin/
+│   └── plugin.json           # 插件清单
+├── commands/                 # Slash 命令
+├── hooks/                    # 事件处理程序
+│   ├── hooks.json
+│   └── *.js
+├── skills/                   # Agent Skills
+│   └── */SKILL.md
+├── .specify/                 # speckit 工作流支持
+│   ├── memory/
+│   ├── scripts/
+│   └── templates/
+└── README.md
 
-feature/             # 功能模块存储目录
-└── [feature-name]/  # 独立功能模块
-    ├── hooks/       # → 复制到 .claude/hooks/
-    ├── lib/         # → 复制到 .claude/lib/
-    ├── scripts/     # 安装/验证脚本
-    ├── settings.json # → 合并到 .claude/settings.json
+feature/                      # 功能模块存储目录（开发参考）
+└── [feature-name]/
+    ├── hooks/
+    ├── scripts/
     └── README.md
 
-.claude/             # Claude Code 配置目录
-├── hooks/           # Hook 脚本（运行时）
-├── lib/             # 核心库（运行时）
-├── conversations/   # 会话日志
-└── settings.json    # Hooks 配置
+.claude/                      # 开发时的独立配置
+├── commands/
+├── hooks/
+└── settings.json
+
+specs/                        # 功能规范存储
+doc/                          # 文档存储
 ```
 
-## Commands
+## Plugin Usage
 
-# Add commands for Node.js 18+ (LTS)
+### 安装插件
+
+```bash
+# 本地测试
+claude --plugin-dir ./ccsaffold
+
+# 市场安装（正式发布后）
+claude /plugin install ccsaffold
+```
+
+### 可用命令
+
+| 命令 | 描述 |
+|------|------|
+| `/ccsaffold:speckit.specify` | 创建功能规范 |
+| `/ccsaffold:speckit.plan` | 生成实施计划 |
+| `/ccsaffold:speckit.tasks` | 生成任务列表 |
+| `/ccsaffold:speckit.implement` | 执行任务实施 |
+| `/ccsaffold:speckit.clarify` | 澄清需求细节 |
+| `/ccsaffold:speckit.analyze` | 分析规范一致性 |
+| `/ccsaffold:speckit.constitution` | 创建/更新项目宪章 |
+| `/ccsaffold:speckit.checklist` | 生成检查清单 |
+| `/ccsaffold:speckit.taskstoissues` | 转换任务为 GitHub Issues |
 
 ## Code Style
 
@@ -77,8 +110,9 @@ Node.js 18+ (LTS): Follow standard conventions
 - 异步操作使用 Promise 或 async/await，但要确保在 `stdin end` 事件中正确处理
 
 ## Recent Changes
+- 003-plugin-standardize: Created ccsaffold plugin with speckit commands, session logging hooks, and Agent Skills
+- 003-plugin-standardize: Added Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, readline）
 - 001-continuous-learning: Added Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, https, crypto）
-
 - 001-session-logging: Added Node.js 18+ (LTS) + 无外部依赖，使用Node.js内置模块（fs, path, readline, process）
 
 <!-- MANUAL ADDITIONS START -->

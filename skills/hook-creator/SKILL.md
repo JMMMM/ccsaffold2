@@ -1,6 +1,6 @@
 ---
 name: hook-creator
-description: 创建 Claude Code 钩子脚本和配置。当用户说"创建钩子"、"新建hook"、"添加钩子"、"帮我写一个钩子"或需要为 Claude Code 添加自动化钩子功能时触发。支持 UserPromptSubmit、PreToolUse、PostToolUse、Notification、Stop 等事件类型。
+description: Create Claude Code hooks and configurations. Triggers when user wants to create hooks, add automation, or implement event handlers for UserPromptSubmit, PreToolUse, PostToolUse, Notification, Stop events.
 ---
 
 # Hook Creator
