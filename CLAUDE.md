@@ -46,20 +46,37 @@ doc/                          # 文档存储
 
 ## Plugin Usage
 
-### 安装插件
+### 使用方式
 
+**方式1：--plugin-dir（临时加载）**
 ```bash
-# 本地测试
-claude --plugin-dir ./ccsaffold
-
-# 市场安装（正式发布后）
-claude /plugin install ccsaffold
+cd /path/to/your-project
+claude --plugin-dir /Users/ming/Work/ccsaffold2
 ```
 
-### 可用命令
+**方式2：安装到项目（推荐，无需每次指定）**
+```bash
+# 安装插件到目标项目
+node /Users/ming/Work/ccsaffold2/scripts/install.js /path/to/your-project
 
+# 之后正常启动即可
+cd /path/to/your-project
+claude
+```
+
+### 插件功能
+
+**Hooks（自动生效）**
+| Hook | 描述 |
+|------|------|
+| `UserPromptSubmit` | 记录用户输入到 `.claude/conversations/conversation.txt` |
+| `PostToolUse` | 记录AI工具调用（排除只读查询类工具） |
+| `SessionEnd` | 自动分析会话内容，生成可复用的skill |
+
+**Slash Commands**
 | 命令 | 描述 |
 |------|------|
+| `/ccsaffold:install` | 将插件安装到当前项目 |
 | `/ccsaffold:speckit.specify` | 创建功能规范 |
 | `/ccsaffold:speckit.plan` | 生成实施计划 |
 | `/ccsaffold:speckit.tasks` | 生成任务列表 |
@@ -69,6 +86,19 @@ claude /plugin install ccsaffold
 | `/ccsaffold:speckit.constitution` | 创建/更新项目宪章 |
 | `/ccsaffold:speckit.checklist` | 生成检查清单 |
 | `/ccsaffold:speckit.taskstoissues` | 转换任务为 GitHub Issues |
+
+### 安装后的项目结构
+
+```
+your-project/.claude/
+├── settings.json          # hooks配置
+├── hooks/
+│   ├── session-logger.js  # 会话日志
+│   └── auto-learning.js   # 自动学习
+├── lib/                   # 依赖库
+└── conversations/         # 会话日志存储
+    └── conversation.txt
+```
 
 ## Code Style
 
