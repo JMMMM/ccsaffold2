@@ -143,26 +143,38 @@ async function runLearningProcess(transcriptPath, cwd, logger) {
 
   // Log response details (T026)
   logger.log('DEBUG', 'llm_response', 'LLM response received', {
-    results_count: results ? results.length : 0
+    has_reasoning: results && !!results.reasoning,
+    skills_count: results && results.skills ? results.skills.length : 0
   });
+
+  // Log thinking process (深度思考过程)
+  if (results && results.reasoning) {
+    logger.log('INFO', 'llm_thinking', 'Deep thinking process', {
+      reasoning: results.reasoning
+    });
+    // 同时输出到终端
+    console.log('[Think] 深度思考过程:');
+    console.log(results.reasoning);
+  }
+
   logger.logStep('llm_call', 'LLM analysis completed', {
-    results_count: results ? results.length : 0
+    skills_count: results && results.skills ? results.skills.length : 0
   }, llmStart);
 
   // Check results
-  if (!results || results.length === 0) {
-    logger.log('INFO', 'generate_skill', 'No learnable content found');
+  if (!results || !results.skills || results.skills.length === 0) {
+    logger.log('INFO', 'generate_skill', 'No learnable content found, but thinking process logged');
     return;
   }
 
   // Generate skills (T027, T028)
   const skillStart = Date.now();
   logger.log('INFO', 'generate_skill', 'Generating skill files', {
-    count: results.length
+    count: results.skills.length
   });
 
   const skillPaths = [];
-  for (const result of results) {
+  for (const result of results.skills) {
     const writeStart = Date.now();
     const writeResult = skillGenerator.writeSkillFileWithDedup(cwd, result, true);
     if (writeResult.path) {
