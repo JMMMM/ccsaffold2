@@ -1,10 +1,11 @@
 {
+  "description": "Auto-learning hooks for ccsaffold plugin",
   "hooks": {
     "SessionEnd": [{
       "matcher": "*",
       "hooks": [{
         "type": "command",
-        "command": "node hooks/auto-learning.js"
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/auto-learning.js\""
       }],
       "description": "Auto-learning: 会话结束时自动分析学习内容并生成skill"
     }]
