@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /**
  * Auto-Learning Worker Process
- * Runs asynchronously to analyze transcript and generate skills
+ * Runs asynchronously to analyze conversation and generate skills
  *
  * Command line: node auto-learning-worker.js '<json_config>'
  *
  * Config format:
  * {
  *   "session_id": "abc123",
- *   "transcript_path": "/path/to/transcript.jsonl",
  *   "cwd": "/Users/..."
  * }
  */
@@ -19,7 +18,7 @@ const path = require('path');
 
 // Load lib modules using __dirname for cross-platform compatibility
 const libDir = path.join(__dirname, '..', 'lib');
-const transcriptReader = require(path.join(libDir, 'transcript-reader.js'));
+const conversationReader = require(path.join(libDir, 'conversation-reader.js'));
 const sensitiveFilter = require(path.join(libDir, 'sensitive-filter.js'));
 const llmAnalyzer = require(path.join(libDir, 'llm-analyzer.js'));
 const skillGenerator = require(path.join(libDir, 'skill-generator.js'));
@@ -38,7 +37,7 @@ async function main() {
       process.exit(1);
     }
 
-    const { session_id, transcript_path, cwd } = config;
+    const { session_id, cwd } = config;
 
     // Create logger instance (T005)
     logger = learningLogger.createLogger(session_id, cwd);
@@ -47,7 +46,7 @@ async function main() {
     logger.log('INFO', 'init', 'Starting async learning', { session_id });
 
     // Run the learning process
-    await runLearningProcess(transcript_path, cwd, logger);
+    await runLearningProcess(session_id, cwd, logger);
 
     // Log completion (T030)
     logger.log('INFO', 'complete', 'Async learning completed');
@@ -86,37 +85,49 @@ function parseConfig() {
 
 /**
  * Run the learning process (T014)
- * @param {string} transcriptPath - Path to transcript file
+ * @param {string} sessionId - Session ID
  * @param {string} cwd - Working directory
  * @param {Object} logger - Logger instance
  */
-async function runLearningProcess(transcriptPath, cwd, logger) {
+async function runLearningProcess(sessionId, cwd, logger) {
   // Check if API is available (T037)
   if (!llmAnalyzer.isApiAvailable()) {
     logger.log('WARN', 'init', 'ANTHROPIC_AUTH_TOKEN not set, skipping');
     return;
   }
 
-  // Read transcript (T022)
+  // Read conversation file (T022)
   const readStart = Date.now();
-  const records = transcriptReader.parseFile(transcriptPath);
-  logger.logStep('read_transcript', 'Transcript loaded', {
-    path: transcriptPath,
-    record_count: records ? records.length : 0
+  const conversationData = conversationReader.readBySessionId(cwd, sessionId);
+  const conversationPath = conversationReader.getConversationPath(cwd, sessionId);
+  logger.logStep('read_conversation', 'Conversation loaded', {
+    path: conversationPath,
+    user_prompt_count: conversationData ? conversationData.userPromptCount : 0,
+    tool_use_count: conversationData ? conversationData.toolUseCount : 0
   }, readStart);
 
-  // Check records (T036)
-  if (!records || records.length === 0) {
-    logger.log('WARN', 'read_transcript', 'No transcript records found', {
-      path: transcriptPath
+  // Check conversation data (T036)
+  if (!conversationData) {
+    logger.log('WARN', 'read_conversation', 'No conversation file found', {
+      path: conversationPath
     });
     return;
   }
 
-  // Parse transcript (T023)
+  // Check UserPromptSubmit count (skip if less than 5)
+  if (!conversationReader.hasEnoughPrompts(conversationData, 5)) {
+    logger.log('INFO', 'check_prompts', 'Skipping learning - not enough user prompts', {
+      user_prompt_count: conversationData.userPromptCount,
+      min_required: 5
+    });
+    console.log(`[Auto-Learning] INFO: Skipping - only ${conversationData.userPromptCount} user prompts (min: 5)`);
+    return;
+  }
+
+  // Extract conversation text (T023)
   const parseStart = Date.now();
-  const conversationText = transcriptReader.extractConversationText(records);
-  logger.logStep('parse_transcript', 'Conversation text extracted', {
+  const conversationText = conversationReader.extractConversationText(conversationData);
+  logger.logStep('parse_conversation', 'Conversation text extracted', {
     text_length: conversationText ? conversationText.length : 0
   }, parseStart);
 
@@ -134,9 +145,11 @@ async function runLearningProcess(transcriptPath, cwd, logger) {
   const llmStart = Date.now();
   logger.log('INFO', 'llm_call', 'Starting LLM analysis');
 
-  // Log request details (T025)
-  logger.log('DEBUG', 'llm_request', 'Sending request to LLM', {
-    text_preview: filteredText ? filteredText.substring(0, 200) + '...' : null
+  // Build prompt and log it
+  const fullPrompt = llmAnalyzer.buildPrompt(filteredText);
+  logger.log('INFO', 'llm_request', 'Full prompt to LLM', {
+    prompt: fullPrompt,
+    conversation_text_length: filteredText ? filteredText.length : 0
   });
 
   const results = await llmAnalyzer.analyze(filteredText);
@@ -144,6 +157,7 @@ async function runLearningProcess(transcriptPath, cwd, logger) {
   // Log response details (T026)
   logger.log('DEBUG', 'llm_response', 'LLM response received', {
     has_reasoning: results && !!results.reasoning,
+    has_decision_reason: results && !!results.decision_reason,
     skills_count: results && results.skills ? results.skills.length : 0
   });
 
@@ -155,6 +169,21 @@ async function runLearningProcess(transcriptPath, cwd, logger) {
     // 同时输出到终端
     console.log('[Think] 深度思考过程:');
     console.log(results.reasoning);
+  }
+
+  // Log decision reason (决策原因 - 必须输出)
+  if (results && results.decision_reason) {
+    logger.log('INFO', 'llm_decision', 'Decision reason', {
+      decision_reason: results.decision_reason,
+      skills_generated: results.skills ? results.skills.length : 0
+    });
+    // 同时输出到终端
+    console.log('[Decision] 生成决策原因:');
+    console.log(results.decision_reason);
+  } else if (results) {
+    logger.log('WARN', 'llm_decision', 'No decision reason returned from LLM', {
+      skills_count: results.skills ? results.skills.length : 0
+    });
   }
 
   logger.logStep('llm_call', 'LLM analysis completed', {

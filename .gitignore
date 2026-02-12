@@ -47,6 +47,3 @@ coverage/
 # 会话日志和对话记录（隐私数据）
 conversations/
 *.conversation.txt
-
-# 功能模块安装目录（源码在 feature/ 中）
-# feature/ 目录保留，是功能源码

@@ -67,12 +67,11 @@ function processHook(inputData) {
     return;
   }
 
-  // Get required fields
+  // Get required fields (不再需要 transcript_path)
   const sessionId = input.session_id;
-  const transcriptPath = input.transcript_path;
   const cwd = input.cwd;
 
-  if (!sessionId || !transcriptPath || !cwd) {
+  if (!sessionId || !cwd) {
     return;
   }
 
@@ -83,20 +82,18 @@ function processHook(inputData) {
   }
 
   // Spawn async worker (T018, T019, T020)
-  spawnWorker(sessionId, transcriptPath, cwd);
+  spawnWorker(sessionId, cwd);
 }
 
 /**
  * Spawn the worker process in detached mode (T018, T019)
  * @param {string} sessionId - Session ID
- * @param {string} transcriptPath - Path to transcript file
  * @param {string} cwd - Working directory
  */
-function spawnWorker(sessionId, transcriptPath, cwd) {
-  // Build config for worker
+function spawnWorker(sessionId, cwd) {
+  // Build config for worker (不再需要 transcript_path)
   const config = JSON.stringify({
     session_id: sessionId,
-    transcript_path: transcriptPath,
     cwd: cwd
   });
 

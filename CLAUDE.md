@@ -49,12 +49,6 @@ ccsaffold2/                   # Claude Code 插件项目
 │   └── templates/
 └── README.md
 
-feature/                      # 功能模块存储目录（开发参考）
-└── [feature-name]/
-    ├── hooks/
-    ├── scripts/
-    └── README.md
-
 .claude/                      # 开发时的独立配置
 ├── commands/
 ├── hooks/
@@ -185,6 +179,14 @@ your-project/.claude/
 ## Code Style
 
 Node.js 18+ (LTS): Follow standard conventions
+
+## 开发规范
+
+**默认功能修改/新增都在插件中完成，插件修改后默认让本项目启动**
+
+- 功能代码修改：在 `hooks/` 和 `lib/` 目录中完成
+- 修改后运行：`node scripts/sync-to-local.js` 同步到 `.claude/` 目录
+- 本项目通过 `.claude/` 目录加载插件功能
 
 ## Claude Code Hooks 开发经验
 

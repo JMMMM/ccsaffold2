@@ -9,10 +9,15 @@
  *   "transcript_path": "/path/to/.../xxx.jsonl",
  *   "cwd": "/Users/...",
  *   "hook_event_name": "UserPromptSubmit | PostToolUse",
+ *   "prompt": "...",               // UserPromptSubmit 时
  *   "tool_name": "Write",           // PostToolUse 时
  *   "tool_input": { ... },          // PostToolUse 时
  *   "tool_response": { ... }        // PostToolUse 时
  * }
+ *
+ * 输出格式:
+ * - UserPromptSubmit>{prompt}
+ * - PostToolUse>{"tool_name":"xxx","tool_input":{...},"tool_response":{...}}
  */
 const fs = require('fs');
 const path = require('path');
@@ -25,15 +30,21 @@ process.stdin.on('end', () => {
   try {
     const input = JSON.parse(data || '{}');
     const cwd = input.cwd || process.cwd();
-    const logFile = path.join(cwd, '.claude', 'conversations', 'conversation.txt');
+    const sessionId = input.session_id || 'default';
+    const logFile = path.join(cwd, '.claude', 'conversations', `conversation-${sessionId}.txt`);
     const eventName = input.hook_event_name;
 
     let entry = null;
     if (eventName === 'UserPromptSubmit') {
       const prompt = input.prompt || '';
-      entry = `user> ${prompt}`;
+      entry = `UserPromptSubmit>${prompt}`;
     } else if (eventName === 'PostToolUse') {
-      entry = `Claude> ${JSON.stringify(input)}`;
+      const toolLog = {
+        tool_name: input.tool_name,
+        tool_input: input.tool_input,
+        tool_response: input.tool_response
+      };
+      entry = `PostToolUse>${JSON.stringify(toolLog, null, 2)}`;
     }
 
     if (entry) {

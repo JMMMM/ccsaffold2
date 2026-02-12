@@ -14,7 +14,6 @@ description: Create Claude Code hooks and configurations. Triggers when user wan
 询问用户：
 - **事件类型**: 需要监听哪个事件？(参见 [hook-events.md](references/hook-events.md))
 - **脚本语言**: Node.js / Python / Bash?
-- **输出格式**: 功能模块 (feature/) 还是直接安装到 .claude/?
 - **具体功能**: 钩子需要实现什么逻辑？
 
 ### 2. 选择模板
@@ -26,22 +25,15 @@ description: Create Claude Code hooks and configurations. Triggers when user wan
 
 ### 3. 生成输出
 
-根据用户选择的输出格式：
-
-**功能模块 (feature/)**:
+直接在插件目录中开发：
 ```
-feature/[feature-name]/
-├── hooks/
-│   └── hook.js          # 钩子脚本
-├── scripts/
-│   └── install.sh       # 安装脚本
-├── settings.json        # 配置片段
-└── README.md
+hooks/
+└── hook.js              # 钩子脚本
 ```
 
-**直接安装 (.claude/)**:
-- 复制脚本到 `.claude/hooks/`
-- 合并配置到 `.claude/settings.json`
+安装到目标项目：
+- 复制脚本到目标项目的 `.claude/hooks/`
+- 合并配置到目标项目的 `.claude/settings.json`
 
 ## 配置示例
 

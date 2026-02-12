@@ -2,21 +2,21 @@
 =============================================================================
 SYNC IMPACT REPORT
 =============================================================================
-Version change: N/A → 1.0.0 (Initial creation)
+Version change: 1.2.0 → 1.3.0 (目录结构变更)
 
-Added sections:
-  - Core Principles (5 principles)
-  - Technology Stack
-  - Feature Architecture
-  - Governance
+Modified sections:
+  - Principle VI: 模块化功能存储 → 插件化功能存储
+
+Removed sections:
+  - feature/ 目录引用
 
 Templates requiring updates:
-  - .specify/templates/plan-template.md: ✅ No changes needed (generic template)
-  - .specify/templates/spec-template.md: ✅ No changes needed (generic template)
-  - .specify/templates/tasks-template.md: ✅ No changes needed (generic template)
+  - .specify/templates/plan-template.md: No changes needed (generic template)
+  - .specify/templates/spec-template.md: No changes needed (generic template)
+  - .specify/templates/tasks-template.md: No changes needed (generic template)
 
 Follow-up TODOs:
-  - Sync with /doc/def_consititution.md when amendments are made
+  - 已删除 feature/ 目录
 =============================================================================
 -->
 
@@ -80,6 +80,78 @@ Follow-up TODOs:
 
 **Rationale**: 信息安全是项目可持续发展的基础，合规性是不可逾越的红线。
 
+### VI. 插件化功能存储 (NON-NEGOTIABLE)
+
+所有功能MUST直接在插件根目录开发，采用标准化的目录结构，便于安装到目标项目。
+
+**插件目录结构规范**:
+
+```
+ccsaffold2/                    # 插件根目录
+├── .claude-plugin/
+│   └── plugin.json            # 插件清单
+├── hooks/                     # Hook脚本 → 安装到目标项目 .claude/hooks/
+│   ├── hooks.json             # hooks配置
+│   └── *.js                   # Hook脚本
+├── lib/                       # 核心库文件 → 安装到目标项目 .claude/lib/
+├── scripts/                   # 辅助脚本（安装、验证等）
+├── skills/                    # 技能定义 → 安装到目标项目 .claude/skills/
+├── commands/                  # 命令定义 → 安装到目标项目 .claude/commands/
+├── agents/                    # Agent定义 → 安装到目标项目 .claude/agents/
+└── README.md                  # 插件说明和使用指南
+```
+
+**安装规范**:
+
+- 功能安装MUST支持 `node scripts/install.js <target-project>` 命令
+- 安装时MUST增量复制，不覆盖已有文件
+- `settings.json` MUST采用合并策略，不覆盖已有配置
+- 安装脚本MUST创建必要的目录结构
+
+**Hooks 开发规范**:
+
+- Hook 脚本MUST使用相对路径（如 `.claude/hooks/xxx.js`），不使用环境变量
+- 脚本内使用 `__dirname` 解析路径，避免依赖工作目录
+- 工具过滤逻辑MUST放在 `settings.json` 的 `matcher` 中，保持脚本简洁
+- Hook 脚本MUST始终以 `process.exit(0)` 退出，避免阻塞
+
+**复用要求**:
+
+- 插件MUST提供清晰的README说明安装步骤
+- 插件MUST支持 `--plugin-dir` 方式临时加载
+- 提供验证脚本确保安装成功
+
+**Rationale**: 插件化存储是实现功能复用的基础，标准化目录结构降低使用门槛，一键安装避免手动复制。
+
+### VII. 日志规范 (NON-NEGOTIABLE)
+
+所有日志输出MUST遵守以下规范，确保可读性和兼容性。
+
+**禁止内容**:
+
+- 日志MUST NOT包含emoji表情符号
+- 日志MUST NOT包含特殊Unicode字符（如箭头符号、星号装饰等）
+
+**格式要求**:
+
+- 使用纯ASCII字符进行日志输出
+- 日志前缀格式：`[模块名]` 或 `[模块名-子模块]`
+- 日志级别标识：`INFO`、`WARN`、`ERROR`、`DEBUG`
+- 时间戳格式（可选）：`YYYY-MM-DD HH:mm:ss`
+
+**示例**:
+
+```
+[Auto-Learning] INFO: Starting analysis...
+[Auto-Learning] WARN: No transcript records found
+[Auto-Learning] ERROR: Failed to parse input
+```
+
+**Rationale**:
+- 部分终端环境不支持emoji显示，会导致乱码
+- 日志文件的可读性和可搜索性更重要
+- 保持输出的一致性和专业性
+
 ## Technology Stack
 
 ### 技术选型优先级
@@ -97,16 +169,21 @@ Follow-up TODOs:
 
 ## Feature Architecture
 
-### 目录结构规范
+### 目标目录结构
+
+功能安装后的目标目录结构：
 
 ```
-feature/[feature-name]/
-├── .claude/
-│   ├── SKILLS/          # 技能定义
-│   ├── COMMANDS/        # 命令定义
-│   ├── AGENTS/          # Agent定义
-│   └── HOOKS/           # Hook定义
-└── [其他功能相关文件]
+.claude/
+├── hooks/              # Hook脚本
+├── lib/                # 核心库文件
+├── scripts/            # 运行时脚本
+├── skills/             # 技能定义
+├── commands/           # 命令定义
+├── agents/             # Agent定义
+├── conversations/      # 会话记录
+├── settings.json       # 合并后的配置
+└── CLAUDE.md           # Agent上下文
 ```
 
 ### 记录文件位置
@@ -134,7 +211,7 @@ feature/[feature-name]/
 
 1. 宪章修订MUST经过充分讨论和确认
 2. 修订后MUST更新版本号（遵循语义化版本规范）
-3. 修订后MUST同步更新`/doc/def_consititution.md`文件，保持一致性
+3. 修订后MUST同步更新`.specify/memory/constitution.md`文件，保持一致性
 
 ### 版本规范
 
@@ -148,4 +225,4 @@ feature/[feature-name]/
 - 复杂度增加MUST有充分理由
 - 偏离原则MUST在文档中明确说明原因
 
-**Version**: 1.0.0 | **Ratified**: 2026-02-11 | **Last Amended**: 2026-02-11
+**Version**: 1.3.0 | **Ratified**: 2026-02-11 | **Last Amended**: 2026-02-13
