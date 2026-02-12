@@ -8,6 +8,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-12
 - Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, readline） (003-plugin-standardize)
 - 文件系统（doc/session_log/ 目录用于会话日志） (003-plugin-standardize)
 - Claude Code 插件 (003-plugin-standardize)
+- Node.js 18+ (LTS) + Node.js 内置模块 (child_process, fs, path, https) (004-async-auto-learning)
+- 文件系统 (.claude/logs/continuous-learning/) (004-async-auto-learning)
 
 - Node.js 18+ (LTS) + 无外部依赖，使用Node.js内置模块（fs, path, readline, process） (001-session-logging)
 
@@ -22,7 +24,8 @@ ccsaffold2/                   # Claude Code 插件项目
 ├── hooks/                    # 事件处理程序
 │   ├── hooks.json            # hooks配置（使用 ${CLAUDE_PLUGIN_ROOT}）
 │   ├── session-logger.js     # 会话日志记录
-│   └── auto-learning.js      # 自动学习
+│   ├── auto-learning.js      # 自动学习调度器（异步）
+│   └── auto-learning-worker.js # 自动学习工作进程
 ├── scripts/                  # 工具脚本
 │   └── install.js            # 插件安装脚本
 ├── skills/                   # Agent Skills
@@ -31,7 +34,8 @@ ccsaffold2/                   # Claude Code 插件项目
 │   ├── transcript-reader.js
 │   ├── sensitive-filter.js
 │   ├── llm-analyzer.js
-│   └── skill-generator.js
+│   ├── skill-generator.js
+│   └── learning-logger.js    # 学习日志记录器
 ├── .specify/                 # speckit 工作流支持
 │   ├── memory/
 │   ├── scripts/
@@ -82,7 +86,12 @@ claude
 |------|------|
 | `UserPromptSubmit` | 记录用户输入到 `.claude/conversations/conversation.txt` |
 | `PostToolUse` | 记录AI工具调用（排除只读查询类工具） |
-| `SessionEnd` | 自动分析会话内容，生成可复用的skill |
+| `SessionEnd` | 异步分析会话内容，生成可复用的skill（不阻塞会话关闭） |
+
+**异步学习功能** (004-async-auto-learning)
+- SessionEnd hook 立即返回，学习任务在后台子进程执行
+- 每个会话的学习日志保存在 `.claude/logs/continuous-learning/learning-{session_id}.log`
+- 日志格式：JSON Lines，包含时间戳、步骤、耗时等信息
 
 **Slash Commands**
 | 命令 | 描述 |
@@ -151,10 +160,9 @@ Node.js 18+ (LTS): Follow standard conventions
 - 异步操作使用 Promise 或 async/await，但要确保在 `stdin end` 事件中正确处理
 
 ## Recent Changes
+- 004-async-auto-learning: Added Node.js 18+ (LTS) + Node.js 内置模块 (child_process, fs, path, https)
 - 003-plugin-standardize: Created ccsaffold plugin with speckit commands, session logging hooks, and Agent Skills
 - 003-plugin-standardize: Added Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, readline）
-- 001-continuous-learning: Added Node.js 18+ (LTS) + 无外部依赖，使用 Node.js 内置模块（fs, path, https, crypto）
-- 001-session-logging: Added Node.js 18+ (LTS) + 无外部依赖，使用Node.js内置模块（fs, path, readline, process）
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

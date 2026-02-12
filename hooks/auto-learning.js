@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * Auto-Learning Hook
- * Triggered on sessionEnd event to analyze transcript and generate skills
+ * Auto-Learning Hook (Async Dispatcher)
+ * Triggered on sessionEnd event to spawn async learning worker
+ *
+ * This hook returns immediately and spawns a detached child process
+ * to perform the actual learning analysis.
  *
  * stdin input format:
  * {
@@ -14,19 +17,20 @@
 
 'use strict';
 
+const { spawn } = require('child_process');
 const path = require('path');
 
-// Load lib modules using __dirname for cross-platform compatibility
+// Load llm-analyzer for API check
 const libDir = path.join(__dirname, '..', 'lib');
-const transcriptReader = require(path.join(libDir, 'transcript-reader.js'));
-const sensitiveFilter = require(path.join(libDir, 'sensitive-filter.js'));
 const llmAnalyzer = require(path.join(libDir, 'llm-analyzer.js'));
-const skillGenerator = require(path.join(libDir, 'skill-generator.js'));
+
+// Path to worker script
+const workerPath = path.join(__dirname, 'auto-learning-worker.js');
 
 /**
- * Main hook handler
+ * Main hook handler - returns immediately (T001, FR-001)
  */
-async function main() {
+function main() {
   let data = '';
 
   // Read stdin
@@ -35,23 +39,23 @@ async function main() {
     data += chunk;
   });
 
-  process.stdin.on('end', async () => {
+  process.stdin.on('end', () => {
     try {
-      await processHook(data);
+      processHook(data);
     } catch (e) {
-      // Silent failure - don't block session end
-      console.error('Auto-learning error:', e.message);
+      // Silent failure - don't block session end (T021)
+      console.error('[Auto-Learning] ERROR:', e.message);
     }
-    // Always exit 0 to avoid blocking Claude Code
+    // Always exit 0 immediately (T001, FR-001)
     process.exit(0);
   });
 }
 
 /**
- * Process the hook input
+ * Process the hook input and spawn worker (T017)
  * @param {string} inputData - Raw stdin data
  */
-async function processHook(inputData) {
+function processHook(inputData) {
   // Parse hook input
   const input = parseInput(inputData);
   if (!input) {
@@ -63,53 +67,60 @@ async function processHook(inputData) {
     return;
   }
 
-  // Get transcript path and working directory
+  // Get required fields
+  const sessionId = input.session_id;
   const transcriptPath = input.transcript_path;
   const cwd = input.cwd;
 
-  if (!transcriptPath || !cwd) {
+  if (!sessionId || !transcriptPath || !cwd) {
     return;
   }
 
   // Check if API is available
   if (!llmAnalyzer.isApiAvailable()) {
-    console.log('Auto-learning: ANTHROPIC_AUTH_TOKEN not set, skipping');
+    console.log('[Auto-Learning] INFO: ANTHROPIC_AUTH_TOKEN not set, skipping');
     return;
   }
 
-  // Read transcript
-  const records = transcriptReader.parseFile(transcriptPath);
-  if (!records || records.length === 0) {
-    console.log('Auto-learning: No transcript records found');
-    return;
-  }
+  // Spawn async worker (T018, T019, T020)
+  spawnWorker(sessionId, transcriptPath, cwd);
+}
 
-  // Extract conversation text
-  const conversationText = transcriptReader.extractConversationText(records);
+/**
+ * Spawn the worker process in detached mode (T018, T019)
+ * @param {string} sessionId - Session ID
+ * @param {string} transcriptPath - Path to transcript file
+ * @param {string} cwd - Working directory
+ */
+function spawnWorker(sessionId, transcriptPath, cwd) {
+  // Build config for worker
+  const config = JSON.stringify({
+    session_id: sessionId,
+    transcript_path: transcriptPath,
+    cwd: cwd
+  });
 
-  // Filter sensitive information
-  const filteredText = sensitiveFilter.filter(conversationText);
+  // Build log path for terminal output
+  const logPath = path.join('.claude', 'logs', 'continuous-learning', `learning-${sessionId}.log`);
 
-  // Analyze with LLM
-  console.log('Auto-learning: Analyzing session for learning opportunities...');
-  const results = await llmAnalyzer.analyze(filteredText);
+  try {
+    // Spawn detached child process (T018)
+    const child = spawn(process.execPath, [workerPath, config], {
+      detached: true,        // Child runs independently
+      stdio: 'ignore',       // Don't pipe stdio
+      cwd: cwd               // Set working directory
+    });
 
-  if (!results || results.length === 0) {
-    console.log('Auto-learning: No learnable content found');
-    return;
-  }
+    // Allow parent to exit independently (T019)
+    child.unref();
 
-  // Generate skills with deduplication
-  console.log(`Auto-learning: Found ${results.length} learning opportunity(es)`);
-  for (const result of results) {
-    const writeResult = skillGenerator.writeSkillFileWithDedup(cwd, result, true);
-    if (writeResult.path) {
-      if (writeResult.merged) {
-        console.log(`Auto-learning: Updated existing skill: ${writeResult.path}`);
-      } else {
-        console.log(`Auto-learning: Created new skill: ${writeResult.path}`);
-      }
-    }
+    // Terminal output (T020)
+    console.log(`[Auto-Learning] INFO: Starting async learning for session ${sessionId}`);
+    console.log(`[Auto-Learning] INFO: Log file: ${logPath}`);
+
+  } catch (e) {
+    // Fallback handling (T021)
+    console.error('[Auto-Learning] ERROR: Failed to spawn worker:', e.message);
   }
 }
 
