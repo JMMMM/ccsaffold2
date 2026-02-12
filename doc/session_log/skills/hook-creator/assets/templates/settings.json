@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "command",
+        "command": "node .claude/hooks/hook.js"
+      }]
+    }],
+    "PreToolUse": [{
+      "matcher": "Bash|Write|Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "node .claude/hooks/hook.js"
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "^(?!Read|Grep|Glob).*$",
+      "hooks": [{
+        "type": "command",
+        "command": "node .claude/hooks/hook.js"
+      }]
+    }]
+  }
+}
