@@ -1,0 +1,8 @@
+{
+  "name": "ccsaffold",
+  "version": "1.0.0",
+  "description": "Claude Code scaffold plugin with auto-learning and hook creation capabilities",
+  "author": "ming",
+  "license": "MIT",
+  "repository": "https://github.com/ming/ccsaffold"
+}
