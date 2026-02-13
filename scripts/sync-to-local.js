@@ -25,7 +25,7 @@ const FILES_TO_SYNC = [
   ['hooks/web-cache-before.js', 'hooks/web-cache-before.js'],
 
   // Lib
-  ['lib/llm-analyzer.js', 'lib/llm-analyzer.js'],
+  ['lib/claude-cli-client.js', 'lib/claude-cli-client.js'],
   ['lib/skill-generator.js', 'lib/skill-generator.js'],
   ['lib/sensitive-filter.js', 'lib/sensitive-filter.js'],
   ['lib/learning-logger.js', 'lib/learning-logger.js'],

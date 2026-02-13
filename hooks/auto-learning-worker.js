@@ -1,27 +1,23 @@
 #!/usr/bin/env node
 /**
- * Auto-Learning Worker Process
- * Runs asynchronously to analyze conversation and generate skills
+ * Auto-Learning Worker Process (Simplified)
  *
- * Command line: node auto-learning-worker.js '<json_config>'
+ * Flow:
+ * 1. Get conversation file path
+ * 2. Call Claude CLI via tail | claude pipe
+ * 3. Claude CLI analyzes + creates files directly
  *
- * Config format:
- * {
- *   "session_id": "abc123",
- *   "cwd": "/Users/..."
- * }
+ * That's it! No complex dispatchers.
  */
 
 'use strict';
 
 const path = require('path');
 
-// Load lib modules using __dirname for cross-platform compatibility
+// Load lib modules
 const libDir = path.join(__dirname, '..', 'lib');
 const conversationReader = require(path.join(libDir, 'conversation-reader.js'));
-const sensitiveFilter = require(path.join(libDir, 'sensitive-filter.js'));
-const llmAnalyzer = require(path.join(libDir, 'llm-analyzer.js'));
-const skillGenerator = require(path.join(libDir, 'skill-generator.js'));
+const claudeCli = require(path.join(libDir, 'claude-cli-client.js'));
 const learningLogger = require(path.join(libDir, 'learning-logger.js'));
 
 /**
@@ -31,7 +27,7 @@ async function main() {
   let logger = null;
 
   try {
-    // Parse config from command line argument (T013)
+    // Parse config
     const config = parseConfig();
     if (!config) {
       process.exit(1);
@@ -39,34 +35,27 @@ async function main() {
 
     const { session_id, cwd } = config;
 
-    // Create logger instance (T005)
+    // Create logger
     logger = learningLogger.createLogger(session_id, cwd);
+    logger.log('INFO', 'init', 'Starting simplified learning', { session_id });
 
-    // Log initialization (T015)
-    logger.log('INFO', 'init', 'Starting async learning', { session_id });
+    // Run learning
+    await runLearning(session_id, cwd, logger);
 
-    // Run the learning process
-    await runLearningProcess(session_id, cwd, logger);
-
-    // Log completion (T030)
-    logger.log('INFO', 'complete', 'Async learning completed');
-
+    logger.log('INFO', 'complete', 'Learning completed');
     process.exit(0);
   } catch (e) {
-    // Log error (T016)
     if (logger) {
       logger.logError('error', 'Worker failed', e);
     } else {
       console.error('[Auto-Learning] ERROR:', e.message);
     }
-    // Exit gracefully (T016 - don't crash)
     process.exit(0);
   }
 }
 
 /**
  * Parse configuration from command line
- * @returns {Object|null} Parsed config or null
  */
 function parseConfig() {
   const args = process.argv.slice(2);
@@ -84,142 +73,61 @@ function parseConfig() {
 }
 
 /**
- * Run the learning process (T014)
- * @param {string} sessionId - Session ID
- * @param {string} cwd - Working directory
- * @param {Object} logger - Logger instance
+ * Run the learning process - uses tail | claude pipe
  */
-async function runLearningProcess(sessionId, cwd, logger) {
-  // Check if API is available (T037)
-  if (!llmAnalyzer.isApiAvailable()) {
-    logger.log('WARN', 'init', 'ANTHROPIC_AUTH_TOKEN not set, skipping');
+async function runLearning(sessionId, cwd, logger) {
+  // Step 1: Check Claude CLI availability
+  if (!claudeCli.isAvailable()) {
+    logger.log('WARN', 'init', 'Claude CLI not available, skipping');
+    console.log('[Auto-Learning] WARN: Claude CLI not available');
     return;
   }
 
-  // Read conversation file (T022)
-  const readStart = Date.now();
-  const conversationData = conversationReader.readBySessionId(cwd, sessionId);
+  const availability = await claudeCli.checkAvailability();
+  logger.log('INFO', 'init', 'Claude CLI ready', { version: availability.version });
+
+  // Step 2: Get conversation file path
   const conversationPath = conversationReader.getConversationPath(cwd, sessionId);
-  logger.logStep('read_conversation', 'Conversation loaded', {
-    path: conversationPath,
-    user_prompt_count: conversationData ? conversationData.userPromptCount : 0,
-    tool_use_count: conversationData ? conversationData.toolUseCount : 0
-  }, readStart);
 
-  // Check conversation data (T036)
+  // Check if file exists and has enough content
+  const conversationData = conversationReader.readBySessionId(cwd, sessionId);
   if (!conversationData) {
-    logger.log('WARN', 'read_conversation', 'No conversation file found', {
-      path: conversationPath
-    });
+    logger.log('WARN', 'read', 'No conversation found', { path: conversationPath });
     return;
   }
 
-  // Check UserPromptSubmit count (skip if less than 5)
-  if (!conversationReader.hasEnoughPrompts(conversationData, 5)) {
-    logger.log('INFO', 'check_prompts', 'Skipping learning - not enough user prompts', {
-      user_prompt_count: conversationData.userPromptCount,
-      min_required: 5
+  // Check minimum prompts (3)
+  const MIN_PROMPTS = 3;
+  if (!conversationReader.hasEnoughPrompts(conversationData, MIN_PROMPTS)) {
+    logger.log('INFO', 'check', 'Not enough prompts', {
+      count: conversationData.userPromptCount,
+      min: MIN_PROMPTS
     });
-    console.log(`[Auto-Learning] INFO: Skipping - only ${conversationData.userPromptCount} user prompts (min: 5)`);
+    console.log(`[Auto-Learning] Skipping - only ${conversationData.userPromptCount} prompts`);
     return;
   }
 
-  // Extract conversation text (T023)
-  const parseStart = Date.now();
-  const conversationText = conversationReader.extractConversationText(conversationData);
-  logger.logStep('parse_conversation', 'Conversation text extracted', {
-    text_length: conversationText ? conversationText.length : 0
-  }, parseStart);
-
-  // Filter sensitive information (T024)
-  const filterStart = Date.now();
-  const originalLength = conversationText ? conversationText.length : 0;
-  const filteredText = sensitiveFilter.filter(conversationText);
-  const filteredLength = filteredText ? filteredText.length : 0;
-  logger.logStep('filter_sensitive', 'Sensitive information filtered', {
-    original_length: originalLength,
-    filtered_length: filteredLength
-  }, filterStart);
-
-  // Analyze with LLM
-  const llmStart = Date.now();
-  logger.log('INFO', 'llm_call', 'Starting LLM analysis');
-
-  // Build prompt and log it
-  const fullPrompt = llmAnalyzer.buildPrompt(filteredText);
-  logger.log('INFO', 'llm_request', 'Full prompt to LLM', {
-    prompt: fullPrompt,
-    conversation_text_length: filteredText ? filteredText.length : 0
+  logger.log('INFO', 'content', 'Conversation file ready', {
+    path: conversationPath,
+    promptCount: conversationData.userPromptCount
   });
 
-  const results = await llmAnalyzer.analyze(filteredText);
+  // Step 3: Call Claude CLI via tail | claude pipe
+  console.log('[Auto-Learning] Calling Claude CLI for analysis and file creation...');
+  logger.log('INFO', 'llm', 'Starting Claude CLI with tail pipe');
 
-  // Log response details (T026)
-  logger.log('DEBUG', 'llm_response', 'LLM response received', {
-    has_reasoning: results && !!results.reasoning,
-    has_decision_reason: results && !!results.decision_reason,
-    skills_count: results && results.skills ? results.skills.length : 0
-  });
+  const result = await claudeCli.executeLearningWithFile(conversationPath, cwd, {}, logger);
 
-  // Log thinking process (深度思考过程)
-  if (results && results.reasoning) {
-    logger.log('INFO', 'llm_thinking', 'Deep thinking process', {
-      reasoning: results.reasoning
+  if (result.success) {
+    logger.log('INFO', 'complete', 'Claude CLI completed successfully');
+    console.log('[Auto-Learning] Learning completed successfully');
+  } else {
+    logger.log('WARN', 'complete', 'Claude CLI completed with issues', {
+      error: result.error
     });
-    // 同时输出到终端
-    console.log('[Think] 深度思考过程:');
-    console.log(results.reasoning);
+    console.log('[Auto-Learning] Learning completed with issues:', result.error);
   }
-
-  // Log decision reason (决策原因 - 必须输出)
-  if (results && results.decision_reason) {
-    logger.log('INFO', 'llm_decision', 'Decision reason', {
-      decision_reason: results.decision_reason,
-      skills_generated: results.skills ? results.skills.length : 0
-    });
-    // 同时输出到终端
-    console.log('[Decision] 生成决策原因:');
-    console.log(results.decision_reason);
-  } else if (results) {
-    logger.log('WARN', 'llm_decision', 'No decision reason returned from LLM', {
-      skills_count: results.skills ? results.skills.length : 0
-    });
-  }
-
-  logger.logStep('llm_call', 'LLM analysis completed', {
-    skills_count: results && results.skills ? results.skills.length : 0
-  }, llmStart);
-
-  // Check results
-  if (!results || !results.skills || results.skills.length === 0) {
-    logger.log('INFO', 'generate_skill', 'No learnable content found, but thinking process logged');
-    return;
-  }
-
-  // Generate skills (T027, T028)
-  const skillStart = Date.now();
-  logger.log('INFO', 'generate_skill', 'Generating skill files', {
-    count: results.skills.length
-  });
-
-  const skillPaths = [];
-  for (const result of results.skills) {
-    const writeStart = Date.now();
-    const writeResult = skillGenerator.writeSkillFileWithDedup(cwd, result, true);
-    if (writeResult.path) {
-      skillPaths.push(writeResult.path);
-      logger.logStep('write_skill', writeResult.merged ? 'Updated existing skill' : 'Created new skill', {
-        path: writeResult.path,
-        merged: writeResult.merged || false
-      }, writeStart);
-    }
-  }
-
-  logger.logStep('generate_skill', 'Skill generation completed', {
-    skills_generated: skillPaths.length,
-    paths: skillPaths
-  }, skillStart);
 }
 
-// Run the worker
+// Run
 main();

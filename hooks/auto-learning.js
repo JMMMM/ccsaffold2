@@ -20,9 +20,9 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-// Load llm-analyzer for API check
+// Load claude-cli-client for availability check
 const libDir = path.join(__dirname, '..', 'lib');
-const llmAnalyzer = require(path.join(libDir, 'llm-analyzer.js'));
+const claudeCli = require(path.join(libDir, 'claude-cli-client.js'));
 
 // Path to worker script
 const workerPath = path.join(__dirname, 'auto-learning-worker.js');
@@ -75,9 +75,9 @@ function processHook(inputData) {
     return;
   }
 
-  // Check if API is available
-  if (!llmAnalyzer.isApiAvailable()) {
-    console.log('[Auto-Learning] INFO: ANTHROPIC_AUTH_TOKEN not set, skipping');
+  // Check if Claude CLI is available
+  if (!claudeCli.isAvailable()) {
+    console.log('[Auto-Learning] INFO: Claude CLI not available, skipping');
     return;
   }
 

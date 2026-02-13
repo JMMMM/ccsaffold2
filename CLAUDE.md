@@ -12,6 +12,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-12
 - 文件系统 (.claude/logs/continuous-learning/) (004-async-auto-learning)
 - Node.js 18+ (LTS) - 与项目现有 hooks 保持一致 + 无外部依赖，使用 Node.js 内置模块（fs, path, url, readline） (005-web-cache-hooks)
 - 文件系统（`skills/learn/` 和 `doc/` 目录） (005-web-cache-hooks)
+- Node.js 18+ LTS（与现有系统一致） + Node.js 内置模块（child_process, fs, path, readline），Claude CLI (002-continuous-learning-upgrade)
+- 文件系统（.claude/skills/, .claude/doc/features/, .claude/logs/） (002-continuous-learning-upgrade)
 
 - Node.js 18+ (LTS) + 无外部依赖，使用Node.js内置模块（fs, path, readline, process） (001-session-logging)
 
@@ -90,6 +92,64 @@ doc/                          # 文档存储
 ### 强制刷新关键词
 
 `重新`, `刷新`, `跳过缓存`, `force refresh`, `reload`, `refresh`
+
+## 持续学习功能升级 (002-continuous-learning-upgrade)
+
+### 功能说明
+
+持续学习功能通过 Claude CLI 自动分析会话并创建知识文件。
+
+### 架构（简化后）
+
+```
+会话结束 (SessionEnd Hook)
+    │
+    ▼
+hooks/auto-learning-worker.js
+    │  读取会话 → 过滤敏感信息
+    │
+    ▼
+lib/claude-cli-client.js
+    │  executeLearning() 调用 Claude CLI
+    │
+    ▼
+Claude CLI（带 Write 工具）
+    └─→ 分析内容 + 判断类型 + 创建文件（一步完成）
+```
+
+### 大模型触发位置
+
+**唯一入口**: `lib/claude-cli-client.js:157` - `executeLearning()` 函数
+
+```javascript
+// 调用参数
+const args = [
+  '-p', prompt,
+  '--allowedTools', 'Write',  // 允许创建文件
+  '--max-turns', '3'
+];
+spawn('claude', args, { cwd, timeout: 60000 });
+```
+
+### 输出类型（由大模型自动判断）
+
+| 类型 | 触发场景 | 存储位置 |
+|------|----------|----------|
+| **Skill** | 顽固 bug 修复 | `.claude/skills/{name}/SKILL.md` |
+| **功能文档** | 功能开发/修改 | `.claude/doc/features/{name}.md` |
+
+### 核心模块
+
+| 模块 | 功能 |
+|------|------|
+| `lib/claude-cli-client.js` | 调用 Claude CLI（带文件创建能力） |
+| `hooks/auto-learning-worker.js` | 读取会话，触发学习 |
+
+### 使用方式
+
+**自动学习**: 会话结束时自动触发（至少 3 条用户输入）
+
+**手动学习**: 输入 `/learn` 或 `手动学习`
 
 ## Plugin Usage
 
@@ -263,9 +323,9 @@ description: 简短描述，用于触发匹配
 | `user-invocable` | 否 | `false` 则从菜单隐藏 |
 
 ## Recent Changes
+- 002-continuous-learning-upgrade: Added Node.js 18+ LTS（与现有系统一致） + Node.js 内置模块（child_process, fs, path, readline），Claude CLI
 - 005-web-cache-hooks: Added Node.js 18+ (LTS) - 与项目现有 hooks 保持一致 + 无外部依赖，使用 Node.js 内置模块（fs, path, url, readline）
 - 2026-02-12: 修复 skills 目录结构问题（必须是 `<name>/SKILL.md` 格式）
-- 2026-02-12: 添加 manual-learn、hook-creator、ccsaffold-jian skills
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
