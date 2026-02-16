@@ -95,7 +95,7 @@ fs.writeFileSync(targetSettingsFile, JSON.stringify(existingSettings, null, 2));
 console.log('✓ 已更新 .claude/settings.json');
 
 // 复制hooks脚本
-const hooksToCopy = ['session-logger.js', 'auto-learning.js'];
+const hooksToCopy = ['session-logger.js', 'auto-learning.js', 'auto-learning-worker.js'];
 for (const hookFile of hooksToCopy) {
   const src = path.join(pluginRoot, 'hooks', hookFile);
   const dest = path.join(targetHooksDir, hookFile);
