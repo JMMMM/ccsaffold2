@@ -8,11 +8,52 @@
 lib/
 ├── claude-cli-client.js     # Claude CLI / BigModel API 调用客户端
 ├── conversation-reader.js   # 会话内容读取
+├── idea-manager.js          # Idea 累计管理
+├── idea-synthesizer.js      # Skill 提炼模块
 ├── learning-logger.js       # 学习日志记录器
+├── llm-analyzer.js          # LLM 分析模块
 ├── sensitive-filter.js      # 敏感信息过滤
 ├── skill-generator.js       # Skill 文件生成
 └── transcript-reader.js     # 会话转录文件读取
 ```
+
+## 新增模块
+
+### idea-manager.js
+
+功能描述：管理 Idea 累计机制
+
+| 方法/函数 | 说明 |
+|-----------|------|
+| `loadIdeasIndex(cwd, logger)` | 加载 Idea 索引 |
+| `saveIdeasIndex(cwd, index, logger)` | 保存 Idea 索引 |
+| `addOrUpdateIdea(cwd, newIdea, sessionId, evidence, logger)` | 累加/创建 Idea |
+| `checkThreshold(idea)` | 检查是否达到阈值 |
+| `loadIdeaInstances(cwd, ideaId)` | 加载 Idea 实例 |
+| `getIdeaStats(cwd)` | 获取 Idea 统计 |
+| `logIdeaStatus(cwd, sessionStats, logger)` | 记录状态汇总 |
+
+### idea-synthesizer.js
+
+功能描述：从累计的 Idea 提炼 Skill
+
+| 方法/函数 | 说明 |
+|-----------|------|
+| `synthesizeSkill(idea, instances, cwd, logger)` | 提炼 Skill |
+| `buildSynthesisPrompt(idea, instances)` | 构建提炼提示词 |
+| `createDefaultSkill(idea)` | 创建默认 Skill（LLM 失败时） |
+
+### llm-analyzer.js (更新)
+
+新增方法：
+| 方法/函数 | 说明 |
+|-----------|------|
+| `analyzeForIdeas(transcriptContent, apiKey, logger)` | 分析会话识别 Idea |
+| `analyzeForSkills(transcriptContent, apiKey)` | 分析会话生成 Skill（手动学习） |
+| `buildPrompt(transcriptContent)` | 构建 Idea 分析提示词 |
+| `buildSkillPrompt(transcriptContent)` | 构建 Skill 生成提示词 |
+| `validateIdea(idea)` | 验证 Idea 格式 |
+| `filterValidIdeas(ideas)` | 过滤有效 Idea |
 
 ## 代码文件
 
