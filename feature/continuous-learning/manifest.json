@@ -1,0 +1,16 @@
+{
+  "name": "continuous-learning",
+  "version": "1.0.0",
+  "description": "持续学习功能，会话结束时自动分析学习内容并生成skill",
+  "enabled": true,
+  "files": {
+    "hooks": ["hooks/auto-learning.js"],
+    "lib": [
+      "lib/sensitive-filter.js",
+      "lib/llm-analyzer.js",
+      "lib/skill-generator.js",
+      "lib/transcript-reader.js"
+    ],
+    "skills": []
+  }
+}

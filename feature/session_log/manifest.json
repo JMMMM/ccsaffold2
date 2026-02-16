@@ -1,0 +1,11 @@
+{
+  "name": "session-log",
+  "version": "1.0.0",
+  "description": "会话日志记录功能，记录用户输入和AI工具调用",
+  "enabled": true,
+  "files": {
+    "hooks": ["hooks/session-logger.js"],
+    "lib": [],
+    "skills": []
+  }
+}

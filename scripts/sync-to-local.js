@@ -3,8 +3,8 @@
  * Sync plugin files to local .claude/ directory
  * Usage: node scripts/sync-to-local.js
  *
- * This script copies plugin files to the project's .claude/ directory
- * so changes in the plugin take effect immediately.
+ * This script copies files from .claude-plugin/ to the project's .claude/
+ * directory so the plugin takes effect immediately in this project.
  */
 
 'use strict';
@@ -12,63 +12,139 @@
 const fs = require('fs');
 const path = require('path');
 
-// Plugin root directory
-const pluginRoot = path.join(__dirname, '..');
-const localClaudeDir = path.join(pluginRoot, '.claude');
+// Project root directory
+const projectRoot = path.join(__dirname, '..');
+const pluginDir = path.join(projectRoot, '.claude-plugin');
+const localClaudeDir = path.join(projectRoot, '.claude');
 
-// Files to sync: [source, target]
-const FILES_TO_SYNC = [
-  // Hooks
-  ['hooks/session-logger.js', 'hooks/session-logger.js'],
-  ['hooks/auto-learning.js', 'hooks/auto-learning.js'],
-  ['hooks/auto-learning-worker.js', 'hooks/auto-learning-worker.js'],
-  ['hooks/web-cache-before.js', 'hooks/web-cache-before.js'],
+/**
+ * Get all files in a directory (non-recursive)
+ */
+function getFiles(dir) {
+  const files = [];
 
-  // Lib
-  ['lib/llm-analyzer.js', 'lib/llm-analyzer.js'],
-  ['lib/skill-generator.js', 'lib/skill-generator.js'],
-  ['lib/sensitive-filter.js', 'lib/sensitive-filter.js'],
-  ['lib/learning-logger.js', 'lib/learning-logger.js'],
-  ['lib/transcript-reader.js', 'lib/transcript-reader.js'],
-  ['lib/conversation-reader.js', 'lib/conversation-reader.js'],
-  ['lib/cache-matcher.js', 'lib/cache-matcher.js'],
-  ['lib/url-utils.js', 'lib/url-utils.js'],
-];
+  if (!fs.existsSync(dir)) {
+    return files;
+  }
 
-function sync() {
-  console.log('[Sync] Syncing plugin files to .claude/ directory...\n');
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
 
-  let synced = 0;
+  for (const entry of entries) {
+    if (entry.isFile()) {
+      files.push(entry.name);
+    }
+  }
+
+  return files;
+}
+
+/**
+ * Copy directory contents to .claude
+ */
+function copyToLocal(pluginSubDir, localSubDir, type) {
+  const sourceDir = path.join(pluginDir, pluginSubDir);
+  const targetDir = path.join(localClaudeDir, localSubDir);
+
+  if (!fs.existsSync(sourceDir)) {
+    console.log(`  [SKIP] ${type}: source directory not found`);
+    return { copied: 0, failed: 0 };
+  }
+
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  const files = getFiles(sourceDir);
+  let copied = 0;
   let failed = 0;
 
-  for (const [src, target] of FILES_TO_SYNC) {
-    const srcPath = path.join(pluginRoot, src);
-    const targetPath = path.join(localClaudeDir, target);
+  for (const file of files) {
+    const srcPath = path.join(sourceDir, file);
+    const targetPath = path.join(targetDir, file);
 
     try {
-      // Check source exists
-      if (!fs.existsSync(srcPath)) {
-        console.log(`  [SKIP] ${src} (source not found)`);
-        continue;
-      }
-
-      // Ensure target directory exists
-      const targetDir = path.dirname(targetPath);
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-
-      // Copy file
       fs.copyFileSync(srcPath, targetPath);
-      console.log(`  [OK] ${src} -> .claude/${target}`);
-      synced++;
+      console.log(`  [OK] ${type}/${file} -> .claude/${localSubDir}/${file}`);
+      copied++;
     } catch (e) {
-      console.log(`  [FAIL] ${src}: ${e.message}`);
+      console.log(`  [FAIL] ${type}/${file}: ${e.message}`);
       failed++;
     }
   }
 
-  console.log(`\n[Sync] Complete: ${synced} synced, ${failed} failed`);
+  return { copied, failed };
+}
+
+/**
+ * Copy settings.json and convert ${CLAUDE_PLUGIN_ROOT} to relative paths
+ */
+function copySettingsJson() {
+  const settingsPath = path.join(pluginDir, 'settings.json');
+  const targetPath = path.join(localClaudeDir, 'settings.json');
+
+  if (!fs.existsSync(settingsPath)) {
+    console.log('  [SKIP] settings.json: source not found');
+    return false;
+  }
+
+  try {
+    let settings = fs.readFileSync(settingsPath, 'utf8');
+
+    // Convert ${CLAUDE_PLUGIN_ROOT}/hooks/ to .claude/hooks/
+    // This is needed for local .claude/ usage (not plugin-dir usage)
+    settings = settings.replace(/\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\//g, '.claude/hooks/');
+    settings = settings.replace(/\$\{CLAUDE_PLUGIN_ROOT\}\/lib\//g, '.claude/lib/');
+    settings = settings.replace(/\$\{CLAUDE_PLUGIN_ROOT\}\/skills\//g, '.claude/skills/');
+
+    fs.writeFileSync(targetPath, settings);
+    console.log('  [OK] settings.json -> .claude/settings.json');
+    return true;
+  } catch (e) {
+    console.log(`  [FAIL] settings.json: ${e.message}`);
+    return false;
+  }
+}
+
+function sync() {
+  console.log('[Sync] Syncing .claude-plugin/ to .claude/ directory...\n');
+
+  // Ensure local .claude directory exists
+  if (!fs.existsSync(localClaudeDir)) {
+    fs.mkdirSync(localClaudeDir, { recursive: true });
+  }
+
+  let totalCopied = 0;
+  let totalFailed = 0;
+
+  // Copy hooks
+  console.log('[Sync] Copying hooks...');
+  const hooksResult = copyToLocal('hooks', 'hooks', 'hooks');
+  totalCopied += hooksResult.copied;
+  totalFailed += hooksResult.failed;
+
+  // Copy lib
+  console.log('[Sync] Copying lib...');
+  const libResult = copyToLocal('lib', 'lib', 'lib');
+  totalCopied += libResult.copied;
+  totalFailed += libResult.failed;
+
+  // Copy skills
+  console.log('[Sync] Copying skills...');
+  const skillsResult = copyToLocal('skills', 'skills', 'skills');
+  totalCopied += skillsResult.copied;
+  totalFailed += skillsResult.failed;
+
+  // Copy commands
+  console.log('[Sync] Copying commands...');
+  const commandsResult = copyToLocal('commands', 'commands', 'commands');
+  totalCopied += commandsResult.copied;
+  totalFailed += commandsResult.failed;
+
+  // Copy settings.json with path conversion
+  console.log('[Sync] Copying settings.json...');
+  copySettingsJson();
+
+  console.log(`\n[Sync] Complete: ${totalCopied} copied, ${totalFailed} failed`);
 }
 
 // Run sync

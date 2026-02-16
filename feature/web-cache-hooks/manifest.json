@@ -1,0 +1,11 @@
+{
+  "name": "web-cache-hooks",
+  "version": "1.0.0",
+  "description": "Web缓存功能，为 web-reader MCP 提供本地缓存",
+  "enabled": true,
+  "files": {
+    "hooks": ["hooks/web-cache-before.js"],
+    "lib": ["lib/url-utils.js", "lib/cache-matcher.js"],
+    "skills": []
+  }
+}

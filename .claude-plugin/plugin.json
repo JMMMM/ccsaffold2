@@ -4,5 +4,6 @@
   "description": "Claude Code scaffold plugin with auto-learning and hook creation capabilities",
   "author": "ming",
   "license": "MIT",
-  "repository": "https://github.com/ming/ccsaffold"
+  "repository": "https://github.com/ming/ccsaffold",
+  "hooks": "settings.json"
 }
