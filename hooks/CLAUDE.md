@@ -9,7 +9,9 @@ hooks/
 ├── hooks.json              # hooks 配置（使用 ${CLAUDE_PLUGIN_ROOT}）
 ├── session-logger.js       # 会话日志记录
 ├── auto-learning.js        # 自动学习调度器（异步）
-└── auto-learning-worker.js # 自动学习工作进程
+├── auto-learning-worker.js # 自动学习工作进程
+├── web-cache-before.js     # Web缓存：检查缓存（PreToolUse）
+└── web-cache-after.js      # Web缓存：保存并生成skill（PostToolUse）
 ```
 
 ## 代码文件
@@ -63,6 +65,56 @@ PostToolUse>{"tool_name":"xxx","tool_input":{...},"tool_response":{...}}
 3. 调用 BigModel API 分析
 4. 创建 Skill 或功能文档
 
+### web-cache-before.js
+
+功能描述：PreToolUse 检查 web-reader MCP 调用的缓存
+
+| 方法/函数 | 说明 |
+|-----------|------|
+| `readInput()` | 读取 stdin JSON 输入 |
+| `extractUrlFromParams(params)` | 从工具参数提取 URL |
+| `checkRefreshRequest(context)` | 检查是否需要刷新缓存 |
+| `formatCacheResponse(cacheInfo)` | 格式化缓存响应 |
+
+**流程**:
+1. 检查是否为 web-reader 调用
+2. 提取 URL 并生成缓存键
+3. 检查是否需要刷新
+4. 查找现有缓存 skill
+5. 如果命中缓存，返回内容阻止 MCP 调用
+
+### web-cache-after.js
+
+功能描述：PostToolUse 处理 web-reader MCP 返回的内容
+
+| 方法/函数 | 说明 |
+|-----------|------|
+| `generateCacheKey(urlStr)` | 生成缓存键（domain/path-hash） |
+| `isDocumentationSite(content, url)` | 判断是否为文档型网站（评分机制） |
+| `extractKeyInfo(content)` | 提取标题、章节、代码块等信息 |
+| `generateSkillContent(...)` | 生成 skill 文件内容 |
+| `generateUserOutput(...)` | 生成用户友好的输出消息 |
+
+**流程**:
+1. 读取 web-reader 返回的 URL 和内容
+2. 生成缓存键
+3. 保存原始 markdown 到 `doc/{cache-key}.md`
+4. 分析内容是否为文档型网站
+5. 如果是文档型，生成 `skills/learn/{cache-key}/SKILL.md`
+6. 输出友好的缓存说明和 skill 使用指南
+
+**文档型网站检测**（评分机制）:
+
+| 检测项 | 权重 | 说明 |
+|--------|------|------|
+| URL 特征 | +3 | docs.domain.com、/docs/、/api/ 等 |
+| 内容结构 | +2 | 标题、代码块、表格、列表 |
+| 技术关键词 | +1 | API、函数、方法、参数等 |
+| 营销内容 | -5 | 广告、订阅、购买等 |
+| 内容长度 | -3 | 内容少于500字符 |
+
+**阈值**: 分数 >= 5 认为是文档型网站
+
 ## Hooks 配置
 
 ### hooks.json
@@ -74,16 +126,93 @@ PostToolUse>{"tool_name":"xxx","tool_input":{...},"tool_response":{...}}
       "matcher": "*",
       "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-logger.js\"" }]
     }],
-    "PostToolUse": [{
-      "matcher": "^(?!Read|Grep|Glob|WebSearch|...).*$",
-      "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-logger.js\"" }]
-    }],
+    "PostToolUse": [
+      {
+        "matcher": "^(?!Read|Grep|Glob|WebSearch|...).*$",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-logger.js\"" }]
+      },
+      {
+        "matcher": "mcp__web-reader__webReader|mcp__web_reader__webReader",
+        "hooks": [{
+          "type": "command",
+          "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/web-cache-after.js\"",
+          "timeout": 30
+        }]
+      }
+    ],
     "SessionEnd": [{
       "matcher": "*",
       "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/auto-learning.js\"" }]
+    }],
+    "PreToolUse": [{
+      "matcher": "mcp__web-reader__webReader|mcp__web_reader__webReader",
+      "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/web-cache-before.js\"" }]
     }]
   }
 }
+```
+
+## Web Cache 功能说明
+
+### 缓存目录结构
+
+```
+.claude/
+├── doc/
+│   └── {cache-key}.md        # 原始 markdown 存档
+└── skills/
+    └── learn/
+        └── {cache-key}/
+            └── SKILL.md      # 生成的 skill（仅文档型网站）
+```
+
+### 缓存键格式
+
+```
+{domain}                          # 根域名
+{domain}/{path-slug}-{hash}       # 带路径的 URL
+
+示例:
+- code.claude.com
+- code.claude.com/docs-zh-CN-hooks-a1b2c3d4
+```
+
+### 使用示例
+
+**用户访问文档**:
+```
+用户: 访问 https://code.claude.com/docs/zh-CN/hooks
+```
+
+**系统自动处理**:
+1. 检查缓存（web-cache-before.js）
+2. 调用 web-reader MCP 获取内容
+3. 保存原始 markdown
+4. 检测为文档型网站
+5. 生成 skill
+
+**输出给用户**:
+```markdown
+## 网站内容已缓存
+
+### 缓存信息
+| 项目 | 内容 |
+|------|------|
+| **域名** | code.claude.com |
+| **URL** | https://code.claude.com/docs/zh-CN/hooks |
+
+### 文档型网站检测
+
+该网站符合**文档型网站特征**，已自动生成可复用的 Skill。
+
+#### 触发方式
+- 访问 **code.claude.com** 的任何 URL
+- 询问关于 **Hooks 参考** 的内容
+
+#### 功能说明
+1. 快速缓存命中：直接使用本地缓存
+2. 离线访问：无需网络连接
+3. 上下文增强：AI 可直接引用缓存内容
 ```
 
 ## 开发规范
@@ -128,3 +257,5 @@ PostToolUse>{"tool_name":"xxx","tool_input":{...},"tool_response":{...}}
 | `UserPromptSubmit` | 记录用户输入到 `.claude/conversations/` |
 | `PostToolUse` | 记录AI工具调用（排除只读查询类工具） |
 | `SessionEnd` | 异步分析会话内容，生成可复用的skill |
+| `PreToolUse` (web-cache-before) | 检查 web-reader 缓存，优先使用已缓存内容 |
+| `PostToolUse` (web-cache-after) | 保存网站内容并自动生成 skill |

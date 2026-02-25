@@ -23,6 +23,17 @@
           }
         ],
         "description": "Session Log: 记录AI工具调用（排除只读查询类工具）"
+      },
+      {
+        "matcher": "mcp__web-reader__webReader|mcp__web_reader__webReader",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/web-cache-after.js\"",
+            "timeout": 30
+          }
+        ],
+        "description": "Web-Cache-After: 自动缓存网站内容并生成skill"
       }
     ],
     "SessionEnd": [
@@ -35,6 +46,18 @@
           }
         ],
         "description": "Auto-learning: 会话结束时自动分析学习内容并生成skill"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__web-reader__webReader|mcp__web_reader__webReader",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/web-cache-before.js\""
+          }
+        ],
+        "description": "Web-Cache-Before: 检查网站缓存，优先使用已缓存内容"
       }
     ]
   }
